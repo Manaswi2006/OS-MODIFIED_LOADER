@@ -7,6 +7,10 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <signal.h>
+#include <errno.h>
+
+#define PAGE_SIZE 4096
 
 void load_and_run_elf(char** exe);
 void loader_cleanup();

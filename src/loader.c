@@ -63,6 +63,9 @@ void segfault_handler(int signum, siginfo_t *info, void *context) {
 
 // Function to load and run an ELF executable
 void load_and_run_elf(char** exe) {
+    Elf32_Phdr *phdrs;  // Declare phdrs as a pointer to Elf32_Phdr
+phdrs = malloc(ehdr.e_phnum * sizeof(Elf32_Phdr));  // Allocate memory for phdrs
+
     
     struct sigaction sa;
     sa.sa_flags = SA_SIGINFO;
@@ -100,9 +103,9 @@ void load_and_run_elf(char** exe) {
             exit(1);
         }
 
-        if (phdr.p_type == PT_LOAD && ehdr.e_entry >= phdr.p_vaddr &&
-            ehdr.e_entry < phdr.p_vaddr + phdr.p_memsz) {
-            entry_segment_base = (void*)phdr.p_vaddr;
+        if (phdr->p_type == PT_LOAD && ehdr.e_entry >= phdr->p_vaddr &&
+            ehdr.e_entry < phdr->p_vaddr + phdr->p_memsz) {
+            entry_segment_base = (void*)phdr->p_vaddr;
             break;
         }
     }
@@ -117,7 +120,7 @@ void load_and_run_elf(char** exe) {
     }
 
     // Set the entry point to start executing
-    entry_segment_base = (void*)ehdr.e_entry;
+    entry_segment_base = (void*)phdr->p_vaddr;
     void (*entry_point)() = (void (*)())entry_segment_base;
     entry_point();
 

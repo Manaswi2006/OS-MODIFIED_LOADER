@@ -17,9 +17,50 @@ void loader_cleanup() {
     // Currently, there is nothing to clean up.
 }
 
-void segfault_handler(int signum) {
+
 //Handle Segmentation Fault here
+void segfault_handler(int signum, siginfo_t *info, void *context) {
+    void *fault_addr = info->si_addr;  // Address that caused the fault
+    int page_offset = ((uintptr_t)fault_addr) % page_size;
+    uintptr_t page_start = (uintptr_t)fault_addr - page_offset;
+
+    // Iterate through program headers to identify the faulting segment
+    for (int i = 0; i < ehdr.e_phnum; i++) {
+        if (phdr[i].p_type == PT_LOAD &&
+            (uintptr_t)fault_addr >= phdr[i].p_vaddr &&
+            (uintptr_t)fault_addr < phdr[i].p_vaddr + phdr[i].p_memsz) {
+
+            // mmap a single page at the page_start address within the segment bounds
+            void *mapped_addr = mmap((void*)page_start, page_size, 
+                                     PROT_READ | PROT_WRITE | PROT_EXEC,
+                                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+
+            if (mapped_addr == MAP_FAILED) {
+                perror("mmap");
+                exit(1);
+            }
+
+            // Load segment data into the newly allocated page
+            lseek(fd, phdr[i].p_offset + (page_start - phdr[i].p_vaddr), SEEK_SET);
+            if (read(fd, mapped_addr, page_size - page_offset) < 0) {
+                perror("read segment");
+                exit(1);
+            }
+
+            // Update counters
+            total_page_faults++;
+            total_page_allocations++;
+            total_internal_fragmentation += (page_size - (phdr[i].p_filesz % page_size)) % page_size;
+
+            return;
+        }
+    }
+
+    // If no matching segment is found, terminate
+    fprintf(stderr, "Segmentation fault at invalid address: %p\n", fault_addr);
+    exit(1);
 }
+
 // Function to load and run an ELF executable
 void load_and_run_elf(char** exe) {
     
@@ -67,13 +108,19 @@ void load_and_run_elf(char** exe) {
     }
 
     // If entry segment found, calculate and call entry point
-    if (entry_segment_base) {
-        void (*entry_point)() = (void (*)())(entry_segment_base + (ehdr.e_entry - phdr.p_vaddr));
-        entry_point();
-    } else {
-        fprintf(stderr, "Entry point not within any loaded segment\n");
+    // Read program headers into allocated memory
+    phdrs = malloc(ehdr.e_phnum * sizeof(Elf32_Phdr));
+    lseek(fd, ehdr.e_phoff, SEEK_SET);
+    if (read(fd, phdr, ehdr.e_phnum * sizeof(Elf32_Phdr)) != ehdr.e_phnum * sizeof(Elf32_Phdr)) {
+        perror("read PHDRs");
         exit(1);
     }
+
+    // Set the entry point to start executing
+    entry_segment_base = (void*)ehdr.e_entry;
+    void (*entry_point)() = (void (*)())entry_segment_base;
+    entry_point();
+
     close(fd);
 }
 
@@ -82,11 +129,13 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Usage: %s <ELF Executable>\n", argv[0]);
         exit(1);
     }
+ //    page_size = sysconf(_SC_PAGE_SIZE);
+ 
 
-    load_and_run_elf(&argv[1]);
-    printf("Page faults: %d\n", page_fault_count);
-    printf("Page allocations: %d\n", page_alloc_count);
-    printf("Total internal fragmentation: %d KB\n", total_fragmentation / 1024);
+     load_and_run_elf(&argv[1]);
+    printf("Page faults: %d\n", total_page_faults);
+    printf("Page allocations: %d\n", total_page_allocations);
+    printf("Total internal fragmentation: %d KB\n", total_internal_fragmentation / 1024);
     loader_cleanup();
     return 0;
 }

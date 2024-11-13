@@ -10,15 +10,27 @@ This project involves creating a SimpleLoader for loading and executing ELF 32-b
 
 ```
 ├── src
-│   ├── loader
-│   ├── loader.c
-│   └── loader.h
-│   └── Makefile
+
+│      ├── loader
+
+│      ├── loader.c
+
+│      └── loader.h
+
+│      └── Makefile
+
 ├── test
-│   ├── Makefile
-│   ├── fib
-│   └── fib.c
+
+│      ├── Makefile
+
+│      └── fib
+
+|      └──sum.c
+
+│      └── fib.c
+
 ├── README.md
+
 └── Makefile
 ```
 

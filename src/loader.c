@@ -5,7 +5,7 @@ int total_page_allocations = 0;
 int total_internal_fragmentation = 0;
 
 Elf32_Ehdr ehdr;
-Elf32_Phdr *phdrs = NULL;
+Elf32_Phdr *phdr = NULL;
 int fd;
 size_t page_size;
 void* entry_segment_base = NULL;

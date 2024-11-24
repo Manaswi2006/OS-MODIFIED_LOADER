@@ -1,4 +1,3 @@
-Here is a README file for your project with all the necessary details:
 
 ```markdown
 # OS-LOADER
